@@ -1,0 +1,291 @@
+<%- contentFor('body') %>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/faculty/dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item active">Batch Details</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><%= batch.name %> - Project Details</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Project Information</h5>
+                        <p><strong>Title:</strong> <%= batch.projectTitle %></p>
+                        <p><strong>Description:</strong> <%= batch.projectDescription %></p>
+                        <p><strong>Department:</strong> <%= batch.department %></p>
+                        <p><strong>Academic Year:</strong> <%= batch.academicYear %></p>
+                        <p><strong>Status:</strong> 
+                            <span class="badge bg-<%= batch.status === 'active' ? 'success' : batch.status === 'completed' ? 'secondary' : 'warning' %>">
+                                <%= batch.status.charAt(0).toUpperCase() + batch.status.slice(1) %>
+                            </span>
+                        </p>
+                        <div class="mt-4">
+                            <a href="/faculty/batch/<%= batch._id %>/submissions" class="btn btn-primary">
+                                <i class="fas fa-file-alt"></i> View All Project Submissions
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Team Members</h5>
+                        <div class="list-group">
+                            <% batch.students.forEach(student => { %>
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1"><%= student.name %></h6>
+                                        <span class="badge bg-primary"><%= student.jntuNumber %></span>
+                                    </div>
+                                    <p class="mb-1">CGPA: <%= student.cgpa %></p>
+                                    <small>Branch: <%= student.branch %></small>
+                                </div>
+                            <% }); %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Project Submissions Summary -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Project Submissions</h5>
+                <a href="/faculty/batch/<%= batch._id %>/submissions" class="btn btn-sm btn-primary">
+                    View All Submissions
+                </a>
+            </div>
+            <div class="card-body">
+                <% if (submissions && submissions.length > 0) { %>
+                    <!-- Group submissions by type -->
+                    <% 
+                        const submissionTypes = {};
+                        submissions.forEach(sub => {
+                            if (!submissionTypes[sub.type]) {
+                                submissionTypes[sub.type] = [];
+                            }
+                            submissionTypes[sub.type].push(sub);
+                        });
+                    %>
+                    
+                    <div class="row">
+                        <% Object.keys(submissionTypes).forEach(type => { %>
+                            <div class="col-md-4 mb-3">
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><%= type.charAt(0).toUpperCase() + type.slice(1) %></h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p>Total: <strong><%= submissionTypes[type].length %></strong></p>
+                                        <p>Latest: <strong>
+                                            <%= new Date(Math.max(...submissionTypes[type].map(s => new Date(s.submittedAt)))).toLocaleDateString() %>
+                                        </strong></p>
+                                        <p>Students: <strong>
+                                            <%= new Set(submissionTypes[type].map(s => s.studentName)).size %>/<%= batch.students.length %>
+                                        </strong></p>
+                                        <a href="/faculty/batch/<%= batch._id %>/submissions#<%= type %>-tab" class="btn btn-sm btn-primary w-100">
+                                            View <%= type.charAt(0).toUpperCase() + type.slice(1) %> Submissions
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } else { %>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No submissions have been made by students in this batch yet.
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reviews Section -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Project Reviews</h5>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#scheduleReviewModal">
+                    <i class="fas fa-plus"></i> Schedule Review
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Score</th>
+                                <th>Feedback</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% batch.reviewDates.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(review => { %>
+                                <tr>
+                                    <td><%= review.title %></td>
+                                    <td><%= new Date(review.date).toLocaleString() %></td>
+                                    <td>
+                                        <span class="badge bg-<%= review.isGlobal ? 'primary' : 'info' %>">
+                                            <%= review.isGlobal ? 'Global' : 'Batch' %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-<%= review.completed ? 'success' : 'warning' %>">
+                                            <%= review.completed ? 'Completed' : 'Pending' %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <% if (review.completed) { %>
+                                            <% if (review.isGlobal) { %>
+                                                <%= review.aggregateScore ? review.aggregateScore.toFixed(2) : 'N/A' %>/100
+                                                <% if (review.panelMembers && review.panelMembers.length > 0) { %>
+                                                    <button class="btn btn-sm btn-info ms-2" 
+                                                            data-bs-toggle="tooltip" 
+                                                            title="Panel Scores: <%= review.panelMembers.map(pm => `${pm.member.name}: ${pm.score || 'Pending'}`).join(', ') %>">
+                                                        <i class="fas fa-info-circle"></i>
+                                                    </button>
+                                                <% } %>
+                                            <% } %>
+                                        <% } else { %>
+                                            Pending
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <% if (review.feedback && review.feedback.length > 0) { %>
+                                            <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewFeedbackModal<%= review._id %>">
+                                                View Feedback
+                                            </button>
+                                        <% } else { %>
+                                            No feedback provided
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <% if (!review.completed && !review.isGlobal) { %>
+                                            <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#completeReviewModal<%= review._id %>">
+                                                Complete Review
+                                            </button>
+                                        <% } %>
+                                    </td>
+                                </tr>
+
+                                <!-- View Feedback Modal -->
+                                <% if (review.feedback && review.feedback.length > 0) { %>
+                                    <div class="modal fade" id="viewFeedbackModal<%= review._id %>" tabindex="-1">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Feedback History: <%= review.title %></h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <% review.feedback.forEach(fb => { %>
+                                                        <div class="card mb-3">
+                                                            <div class="card-body">
+                                                                <h6 class="card-subtitle mb-2 text-muted">
+                                                                    From: <%= fb.from.name %> (<%= fb.from.role %>)
+                                                                </h6>
+                                                                <p class="card-text"><%= fb.comment %></p>
+                                                                <small class="text-muted">
+                                                                    <%= new Date(fb.createdAt).toLocaleString() %>
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                    <% }); %>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <% } %>
+
+                                <!-- Complete Review Modal -->
+                                <% if (!review.completed && !review.isGlobal) { %>
+                                    <div class="modal fade" id="completeReviewModal<%= review._id %>" tabindex="-1">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Complete Review: <%= review.title %></h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <form action="/faculty/batch/<%= batch._id %>/review/<%= review._id %>/complete" method="POST">
+                                                    <div class="modal-body">
+                                                        <div class="mb-3">
+                                                            <label for="feedback" class="form-label">Review Feedback</label>
+                                                            <textarea class="form-control" id="feedback" name="feedback" rows="4" required></textarea>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                        <button type="submit" class="btn btn-primary">Submit Feedback</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <% } %>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Schedule Review Modal -->
+<div class="modal fade" id="scheduleReviewModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Schedule New Review</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/faculty/batch/<%= batch._id %>/schedule-review" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Review Title</label>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date" class="form-label">Review Date</label>
+                        <input type="datetime-local" class="form-control" id="date" name="date" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Schedule Review</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Initialize tooltips -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script> 

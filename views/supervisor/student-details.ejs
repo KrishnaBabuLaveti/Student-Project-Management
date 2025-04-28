@@ -1,0 +1,151 @@
+<%- contentFor('body') %>
+
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/supervisor/dashboard">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Student Details</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Student Profile Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Student Profile</h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="card-title"><%= student.name %></h6>
+                    <p class="card-text">
+                        <strong>JNTU Number:</strong> <%= student.jntuNumber %><br>
+                        <strong>Department:</strong> <%= student.department %><br>
+                        <strong>CGPA:</strong> <%= student.cgpa %><br>
+                        <strong>Branch:</strong> <%= student.branch %>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Batch and Project Details -->
+        <div class="col-md-8 mb-4">
+            <% if (student.batch) { %>
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Batch Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-title"><%= student.batch.name %></h6>
+                        <p class="card-text">
+                            <strong>Project Title:</strong> <%= student.batch.projectTitle %><br>
+                            <strong>Guide:</strong> <%= student.batch.faculty ? student.batch.faculty.name : 'Not Assigned' %><br>
+                            <strong>Academic Year:</strong> <%= student.batch.academicYear %>
+                        </p>
+                    </div>
+                </div>
+            <% } else { %>
+                <div class="alert alert-warning">
+                    This student is not assigned to any batch.
+                </div>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- Project Submissions -->
+    <div class="row">
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Project Submissions</h5>
+                </div>
+                <div class="card-body">
+                    <% if (student.submissions && student.submissions.length > 0) { %>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Submitted On</th>
+                                        <th>File</th>
+                                        <th>Feedback</th>
+                                        <th>Average Rating</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% student.submissions.sort((a, b) => b.submittedAt - a.submittedAt).forEach(submission => { %>
+                                        <tr>
+                                            <td><%= submission.type.charAt(0).toUpperCase() + submission.type.slice(1) %></td>
+                                            <td><%= new Date(submission.submittedAt).toLocaleString() %></td>
+                                            <td>
+                                                <a href="/<%= submission.fileUrl %>" class="btn btn-sm btn-primary" target="_blank">
+                                                    <i class="fas fa-download"></i> Download
+                                                </a>
+                                            </td>
+                                            <td>
+                                                <% if (submission.feedback && submission.feedback.length > 0) { %>
+                                                    <button class="btn btn-sm btn-info" data-bs-toggle="modal" 
+                                                            data-bs-target="#feedbackModal<%= submission._id %>">
+                                                        View Feedback (<%= submission.feedback.length %>)
+                                                    </button>
+                                                <% } else { %>
+                                                    <span class="text-muted">No feedback yet</span>
+                                                <% } %>
+                                            </td>
+                                            <td>
+                                                <% if (submission.feedback && submission.feedback.length > 0) { %>
+                                                    <% const avgRating = submission.feedback.reduce((sum, fb) => sum + fb.rating, 0) / submission.feedback.length; %>
+                                                    <%= avgRating.toFixed(1) %>/10
+                                                <% } else { %>
+                                                    N/A
+                                                <% } %>
+                                            </td>
+                                        </tr>
+
+                                        <!-- Feedback Modal -->
+                                        <% if (submission.feedback && submission.feedback.length > 0) { %>
+                                            <div class="modal fade" id="feedbackModal<%= submission._id %>" tabindex="-1">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title">Feedback History</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <div class="list-group">
+                                                                <% submission.feedback.forEach(fb => { %>
+                                                                    <div class="list-group-item">
+                                                                        <div class="d-flex w-100 justify-content-between">
+                                                                            <h6 class="mb-1">
+                                                                                <%= fb.from.name %>
+                                                                                <span class="badge bg-secondary"><%= fb.from.role %></span>
+                                                                            </h6>
+                                                                            <small><%= new Date(fb.createdAt).toLocaleString() %></small>
+                                                                        </div>
+                                                                        <p class="mb-1"><%= fb.comment %></p>
+                                                                        <small>Rating: <%= fb.rating %>/10</small>
+                                                                    </div>
+                                                                <% }); %>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <% } %>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                    <% } else { %>
+                        <div class="alert alert-info">
+                            No submissions yet from this student.
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 

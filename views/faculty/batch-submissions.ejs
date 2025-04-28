@@ -1,0 +1,183 @@
+<%- contentFor('body') %>
+
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/faculty/dashboard">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="/faculty/batch/<%= batch._id %>">Batch Details</a></li>
+                    <li class="breadcrumb-item active">Project Submissions</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Batch: <%= batch.name %> - Project Submissions</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Project Title:</strong> <%= batch.projectTitle || 'Not assigned' %><br>
+                        <strong>Description:</strong> <%= batch.projectDescription || 'Not provided' %><br>
+                        <strong>Students:</strong> <%= batch.students.length %>
+                    </div>
+                    
+                    <% if (Object.keys(submissionsByType).length === 0) { %>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> No submissions have been made by students in this batch.
+                        </div>
+                    <% } else { %>
+                        <!-- Nav tabs for submission types -->
+                        <ul class="nav nav-tabs" id="submissionTabs" role="tablist">
+                            <% Object.keys(submissionsByType).forEach((type, index) => { %>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link <%= index === 0 ? 'active' : '' %>" 
+                                            id="<%= type %>-tab" 
+                                            data-bs-toggle="tab" 
+                                            data-bs-target="#<%= type %>-content" 
+                                            type="button" 
+                                            role="tab" 
+                                            aria-controls="<%= type %>-content" 
+                                            aria-selected="<%= index === 0 ? 'true' : 'false' %>">
+                                        <%= type.charAt(0).toUpperCase() + type.slice(1) %> 
+                                        <span class="badge bg-secondary"><%= submissionsByType[type].length %></span>
+                                    </button>
+                                </li>
+                            <% }); %>
+                        </ul>
+                        
+                        <!-- Tab content -->
+                        <div class="tab-content p-3 border border-top-0 mb-4" id="submissionTabsContent">
+                            <% Object.keys(submissionsByType).forEach((type, index) => { %>
+                                <div class="tab-pane fade <%= index === 0 ? 'show active' : '' %>" 
+                                     id="<%= type %>-content" 
+                                     role="tabpanel" 
+                                     aria-labelledby="<%= type %>-tab">
+                                    
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Student</th>
+                                                    <th>JNTU Number</th>
+                                                    <th>Submitted On</th>
+                                                    <th>File</th>
+                                                    <th>Feedback</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <% submissionsByType[type].forEach(submission => { %>
+                                                    <tr>
+                                                        <td><%= submission.studentName %></td>
+                                                        <td><%= submission.jntuNumber %></td>
+                                                        <td><%= new Date(submission.submittedAt).toLocaleString() %></td>
+                                                        <td>
+                                                            <a href="/<%= submission.fileUrl %>" class="btn btn-sm btn-primary" target="_blank">
+                                                                <i class="fas fa-download"></i> Download
+                                                            </a>
+                                                        </td>
+                                                        <td>
+                                                            <% if (submission.feedback && submission.feedback.length > 0) { %>
+                                                                <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#feedbackModal<%= type %>_<%= submission._id %>">
+                                                                    View (<%= submission.feedback.length %>)
+                                                                </button>
+                                                            <% } else { %>
+                                                                <span class="text-muted">No feedback</span>
+                                                            <% } %>
+                                                        </td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#provideFeedbackModal<%= type %>_<%= submission._id %>">
+                                                                Add Feedback
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+
+                                                    <!-- Feedback History Modal -->
+                                                    <% if (submission.feedback && submission.feedback.length > 0) { %>
+                                                        <div class="modal fade" id="feedbackModal<%= type %>_<%= submission._id %>" tabindex="-1">
+                                                            <div class="modal-dialog">
+                                                                <div class="modal-content">
+                                                                    <div class="modal-header">
+                                                                        <h5 class="modal-title">Feedback History</h5>
+                                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                                    </div>
+                                                                    <div class="modal-body">
+                                                                        <div class="mb-3">
+                                                                            <strong>Student:</strong> <%= submission.studentName %><br>
+                                                                            <strong>Submission Type:</strong> <%= type.charAt(0).toUpperCase() + type.slice(1) %><br>
+                                                                            <strong>Submitted:</strong> <%= new Date(submission.submittedAt).toLocaleString() %>
+                                                                        </div>
+                                                                        <div class="list-group">
+                                                                            <% submission.feedback.forEach(fb => { %>
+                                                                                <div class="list-group-item">
+                                                                                    <div class="d-flex w-100 justify-content-between">
+                                                                                        <h6 class="mb-1">
+                                                                                            <%= fb.from.name %>
+                                                                                            <span class="badge bg-secondary"><%= fb.from.role %></span>
+                                                                                        </h6>
+                                                                                        <small><%= new Date(fb.createdAt).toLocaleString() %></small>
+                                                                                    </div>
+                                                                                    <p class="mb-1"><%= fb.comment %></p>
+                                                                                    <small>Rating: <%= fb.rating %>/10</small>
+                                                                                </div>
+                                                                            <% }); %>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="modal-footer">
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    <% } %>
+
+                                                    <!-- Add Feedback Modal -->
+                                                    <div class="modal fade" id="provideFeedbackModal<%= type %>_<%= submission._id %>" tabindex="-1">
+                                                        <div class="modal-dialog">
+                                                            <div class="modal-content">
+                                                                <div class="modal-header">
+                                                                    <h5 class="modal-title">Provide Feedback</h5>
+                                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                                </div>
+                                                                <form action="/faculty/feedback/<%= submission.studentId %>/<%= submission._id %>" method="POST">
+                                                                    <div class="modal-body">
+                                                                        <div class="mb-3">
+                                                                            <strong>Student:</strong> <%= submission.studentName %><br>
+                                                                            <strong>Submission Type:</strong> <%= type.charAt(0).toUpperCase() + type.slice(1) %><br>
+                                                                            <strong>Submitted:</strong> <%= new Date(submission.submittedAt).toLocaleString() %>
+                                                                        </div>
+                                                                        <div class="mb-3">
+                                                                            <label for="comment<%= type %>_<%= submission._id %>" class="form-label">Comments</label>
+                                                                            <textarea class="form-control" id="comment<%= type %>_<%= submission._id %>" name="comment" rows="4" required></textarea>
+                                                                        </div>
+                                                                        <div class="mb-3">
+                                                                            <label for="rating<%= type %>_<%= submission._id %>" class="form-label">Rating (0-10)</label>
+                                                                            <input type="number" class="form-control" id="rating<%= type %>_<%= submission._id %>" name="rating" min="0" max="10" required>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="modal-footer">
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                                        <button type="submit" class="btn btn-primary">Submit Feedback</button>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                <% }); %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            <% }); %>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

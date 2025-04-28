@@ -1,0 +1,217 @@
+<%- contentFor('body') %>
+
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2>Welcome, <%= user.name %></h2>
+            <p class="text-muted">Supervisor Dashboard</p>
+        </div>
+    </div>
+
+    <!-- Upload Students Section -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Upload Student Data & Auto-Create Batches</h5>
+                </div>
+                <div class="card-body">
+                    <form action="/supervisor/upload-students" method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="studentData" class="form-label">Upload Student Data File (CSV/XLSX)</label>
+                            <input type="file" class="form-control" id="studentData" name="studentData" accept=".csv,.xlsx" required>
+                            <small class="text-muted">File should contain columns: name, email, jntuNumber, department, cgpa</small>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="batchSize" class="form-label">Students per Batch</label>
+                                    <input type="number" class="form-control" id="batchSize" name="batchSize" 
+                                           value="4" min="1" max="4" required 
+                                           onchange="if(this.value > 4) this.value = 4;">
+                                    <div class="invalid-feedback">Batch size must be between 1 and 4 students</div>
+                                    <small class="text-muted">Maximum 4 students per batch as per university guidelines</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="academicYear" class="form-label">Academic Year</label>
+                                    <input type="text" class="form-control" id="academicYear" name="academicYear" placeholder="2023-24" required>
+                                    <small class="text-muted">Example: 2023-24</small>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Upload & Create Batches
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batches Overview -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Auto-Generated Batches</h5>
+                </div>
+                <div class="card-body">
+                    <% if (batches && batches.length > 0) { %>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Batch Name</th>
+                                        <th>Department</th>
+                                        <th>Faculty Guide</th>
+                                        <th>Students</th>
+                                        <th>Average CGPA</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% batches.forEach(batch => { %>
+                                        <tr>
+                                            <td><%= batch.name %></td>
+                                            <td><%= batch.department %></td>
+                                            <td>
+                                                <% if (batch.faculty) { %>
+                                                    <%= batch.faculty.name %>
+                                                <% } else { %>
+                                                    <span class="badge bg-warning">Not Assigned</span>
+                                                <% } %>
+                                            </td>
+                                            <td>
+                                                <% if (batch.students && batch.students.length > 0) { %>
+                                                    <ul class="list-unstyled mb-0">
+                                                        <% batch.students.forEach(student => { %>
+                                                            <li>
+                                                                <%= student.name %> 
+                                                                (<%= student.jntuNumber %>) - 
+                                                                CGPA: <%= student.cgpa %>
+                                                            </li>
+                                                        <% }); %>
+                                                    </ul>
+                                                <% } else { %>
+                                                    <span class="text-muted">No students assigned</span>
+                                                <% } %>
+                                            </td>
+                                            <td>
+                                                <% if (batch.averageCGPA) { %>
+                                                    <span class="badge bg-info">
+                                                        <%= batch.averageCGPA.toFixed(2) %>
+                                                    </span>
+                                                <% } else { %>
+                                                    <span class="text-muted">N/A</span>
+                                                <% } %>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-<%= batch.status === 'active' ? 'success' : batch.status === 'completed' ? 'secondary' : 'warning' %>">
+                                                    <%= batch.status.charAt(0).toUpperCase() + batch.status.slice(1) %>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group">
+                                                    <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#reassignFacultyModal<%= batch._id %>">
+                                                        <i class="fas fa-sync"></i> Change Guide
+                                                    </button>
+                                                    <button class="btn btn-sm btn-danger" onclick="deleteItem('/supervisor/batch', '<%= batch._id %>', '/supervisor/dashboard')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                    <% } else { %>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>No batches have been created yet. Upload student data to create batches.
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Faculty Load Distribution -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Faculty Guide Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <% if (faculty && faculty.length > 0) { %>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Faculty Name</th>
+                                        <th>Department</th>
+                                        <th>Assigned Batches</th>
+                                        <th>Total Students</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% faculty.forEach(f => { %>
+                                        <tr>
+                                            <td><%= f.name %></td>
+                                            <td><%= f.department %></td>
+                                            <td><%= f.assignedBatches || 0 %></td>
+                                            <td><%= f.totalStudents || 0 %></td>
+                                        </tr>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                    <% } else { %>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>No faculty members found. Please add faculty members first.
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reassign Faculty Modals -->
+<% if (batches && batches.length > 0) { %>
+    <% batches.forEach(batch => { %>
+        <div class="modal fade" id="reassignFacultyModal<%= batch._id %>" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Change Guide for <%= batch.name %></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="/supervisor/batch/<%= batch._id %>/reassign-faculty" method="POST">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="newFacultyId" class="form-label">Select New Guide</label>
+                                <select class="form-select" id="newFacultyId" name="newFacultyId" required>
+                                    <option value="">Select Faculty</option>
+                                    <% faculty.forEach(f => { %>
+                                        <option value="<%= f._id %>" 
+                                                <%= batch.faculty && batch.faculty._id.toString() === f._id.toString() ? 'selected' : '' %>>
+                                            <%= f.name %> (<%= f.department %>) - Current Load: <%= f.assignedBatches || 0 %> batches
+                                        </option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary">Change Guide</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    <% }); %>
+<% } %> 

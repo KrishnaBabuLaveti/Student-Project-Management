@@ -1,0 +1,367 @@
+<%- contentFor('body') %>
+
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/supervisor/dashboard">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Manage Reviews</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Manage Reviews</h4>
+                    <button class="btn btn-light" data-bs-toggle="modal" data-bs-target="#scheduleReviewModal">
+                        Schedule Global Review
+                    </button>
+                </div>
+                <div class="card-body">
+                    <% if (batches && batches.length > 0) { %>
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Batch</th>
+                                        <th>Faculty</th>
+                                        <th>Review Title</th>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% batches.forEach(batch => {
+                                        if (batch.reviewDates && batch.reviewDates.length > 0) {
+                                            batch.reviewDates.forEach(review => { %>
+                                                <tr>
+                                                    <td><%= batch.name %></td>
+                                                    <td><%= batch.faculty ? batch.faculty.name : 'Not Assigned' %></td>
+                                                    <td><%= review.title %></td>
+                                                    <td><%= new Date(review.date).toLocaleString() %></td>
+                                                    <td>
+                                                        <span class="badge bg-<%= review.isGlobal ? 'primary' : 'info' %>">
+                                                            <%= review.isGlobal ? 'Global' : 'Batch' %>
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-<%= review.completed ? 'success' : 'warning' %>">
+                                                            <%= review.completed ? 'Completed' : 'Pending' %>
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <% if (!review.completed && review.isGlobal) { %>
+                                                            <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#completeReviewModal<%= review._id %>">
+                                                                Complete Review
+                                                            </button>
+                                                        <% } %>
+                                                    </td>
+                                                </tr>
+
+                                                <!-- Complete Review Modal -->
+                                                <% if (!review.completed && review.isGlobal) { %>
+                                                    <div class="modal fade" id="completeReviewModal<%= review._id %>" tabindex="-1">
+                                                        <div class="modal-dialog">
+                                                            <div class="modal-content">
+                                                                <div class="modal-header">
+                                                                    <h5 class="modal-title">Complete Review: <%= review.title %></h5>
+                                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                                </div>
+                                                                <form action="/supervisor/review/<%= batch._id %>/<%= review._id %>/complete" method="POST">
+                                                                    <div class="modal-body">
+                                                                        <div class="mb-3">
+                                                                            <label for="feedback" class="form-label">Review Feedback</label>
+                                                                            <textarea class="form-control" id="feedback" name="feedback" rows="4" required></textarea>
+                                                                        </div>
+                                                                        <div class="mb-3">
+                                                                            <label for="supervisorScore" class="form-label">Supervisor Score (0-100)</label>
+                                                                            <input type="number" class="form-control" id="supervisorScore" name="supervisorScore" min="0" max="100" required>
+                                                                        </div>
+                                                                        <% if (review.panelMembers && review.panelMembers.length > 0) { %>
+                                                                            <div class="mb-3">
+                                                                                <h6>Panel Member Scores</h6>
+                                                                                <% review.panelMembers.forEach((member, index) => { %>
+                                                                                    <p><%= member.member.name %>: <%= member.score || 'Pending' %></p>
+                                                                                <% }); %>
+                                                                            </div>
+                                                                        <% } %>
+                                                                    </div>
+                                                                    <div class="modal-footer">
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                                        <button type="submit" class="btn btn-primary">Submit Review</button>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                <% } %>
+                                            <% });
+                                        }
+                                    }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                    <% } else { %>
+                        <div class="alert alert-info">
+                            No batches found.
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Schedule Global Review Modal -->
+<div class="modal fade" id="scheduleReviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Schedule Global Review</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/supervisor/schedule-review" method="POST" id="scheduleReviewForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Review Title</label>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date" class="form-label">Review Date</label>
+                        <input type="datetime-local" class="form-control" id="date" name="date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Select Batches for Review</label>
+                        <div class="alert alert-info" role="alert">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input" type="checkbox" id="selectAllBatches" onchange="toggleAllBatches(this.checked)">
+                                    <label class="form-check-label fw-bold" for="selectAllBatches">
+                                        Select All Batches
+                                    </label>
+                                </div>
+                                <div id="batchCount" class="ms-3 badge bg-primary">0 batches selected</div>
+                            </div>
+                            <small>Choose which batches should receive this review.</small>
+                        </div>
+                        <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">
+                            <% if (batches && batches.length > 0) { %>
+                                <div class="row">
+                                    <% batches.forEach((batch, index) => { %>
+                                        <div class="col-md-6 mb-2">
+                                            <div class="form-check batch-check-item">
+                                                <input class="form-check-input batch-checkbox" type="checkbox" 
+                                                    name="batchIds[]" value="<%= batch._id %>" 
+                                                    id="batch<%= index %>"
+                                                    onchange="updateBatchCount(); validatePanelMembers();">
+                                                <label class="form-check-label batch-label" for="batch<%= index %>">
+                                                    <strong><%= batch.name %></strong><br>
+                                                    <small class="text-muted"><%= batch.faculty ? batch.faculty.name : 'No Faculty' %> • <%= batch.students ? batch.students.length : 0 %> students</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    <% }); %>
+                                </div>
+                            <% } else { %>
+                                <div class="alert alert-warning">
+                                    No batches available.
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Select Panel Members (3 Required)</label>
+                        <div id="panelMemberCount" class="text-info mb-2">0 of 3 required panel members selected</div>
+                        <% if (faculty && faculty.length >= 3) { %>
+                            <% faculty.forEach((f, index) => { %>
+                                <div class="form-check">
+                                    <input class="form-check-input panel-member-checkbox" type="checkbox" 
+                                           name="panelMembers[]" value="<%= f._id %>" 
+                                           id="faculty<%= index %>"
+                                           onchange="validatePanelMembers()">
+                                    <label class="form-check-label" for="faculty<%= index %>">
+                                        <%= f.name %> (<%= f.department %>)
+                                    </label>
+                                </div>
+                            <% }); %>
+                        <% } else { %>
+                            <div class="alert alert-warning">
+                                Not enough faculty members available. At least 3 faculty members are required to schedule a review.
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary" id="scheduleButton" disabled>Schedule Review</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function validatePanelMembers() {
+    const checkboxes = document.querySelectorAll('.panel-member-checkbox:checked');
+    const scheduleButton = document.getElementById('scheduleButton');
+    
+    const batchCheckboxes = document.querySelectorAll('.batch-checkbox:checked');
+    const panelMembersValid = checkboxes.length === 3;
+    const batchesValid = batchCheckboxes.length > 0;
+    
+    scheduleButton.disabled = !(panelMembersValid && batchesValid);
+    
+    // Show count message
+    const countMessage = document.getElementById('panelMemberCount');
+    if (countMessage) {
+        countMessage.textContent = `${checkboxes.length} of 3 required panel members selected`;
+    }
+}
+
+function toggleAllBatches(checked) {
+    // Get ALL batch checkboxes using the correct selector
+    const batchCheckboxes = document.querySelectorAll('input[type="checkbox"].batch-checkbox');
+    
+    console.log(`Found ${batchCheckboxes.length} batch checkboxes to toggle`);
+    
+    // Apply the checked state to all checkboxes
+    batchCheckboxes.forEach(checkbox => {
+        checkbox.checked = checked;
+    });
+    
+    // Update UI and validation state
+    updateBatchCount();
+    validatePanelMembers();
+}
+
+function updateBatchCount() {
+    const batchCheckboxes = document.querySelectorAll('input[type="checkbox"].batch-checkbox:checked');
+    const batchCount = document.getElementById('batchCount');
+    if (batchCount) {
+        batchCount.textContent = `${batchCheckboxes.length} batch${batchCheckboxes.length !== 1 ? 'es' : ''} selected`;
+    }
+}
+
+// Run validation on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing review scheduling form');
+    
+    // Initialize counters and validation
+    updateBatchCount();
+    validatePanelMembers();
+    
+    // Add event listeners for batch checkboxes
+    const batchCheckboxes = document.querySelectorAll('.batch-checkbox');
+    console.log(`Found ${batchCheckboxes.length} batch checkboxes`);
+    
+    batchCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            console.log(`Checkbox ${this.id} changed to ${this.checked}`);
+            updateBatchCount();
+            validatePanelMembers();
+            
+            // If any checkbox is unchecked, also uncheck the "Select All" checkbox
+            if (!this.checked) {
+                const selectAllCheckbox = document.getElementById('selectAllBatches');
+                if (selectAllCheckbox && selectAllCheckbox.checked) {
+                    selectAllCheckbox.checked = false;
+                }
+            } else {
+                // Check if all checkboxes are checked and update the "Select All" checkbox accordingly
+                const allChecked = Array.from(batchCheckboxes).every(cb => cb.checked);
+                const selectAllCheckbox = document.getElementById('selectAllBatches');
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.checked = allChecked;
+                }
+            }
+        });
+    });
+    
+    // Add event listener for the "Select All" checkbox
+    const selectAllCheckbox = document.getElementById('selectAllBatches');
+    if (selectAllCheckbox) {
+        console.log('Found Select All checkbox');
+        selectAllCheckbox.addEventListener('change', function() {
+            console.log(`Select All changed to ${this.checked}`);
+            toggleAllBatches(this.checked);
+        });
+    } else {
+        console.error('Select All checkbox not found');
+    }
+    
+    // Add form submission handler with batch validation
+    const scheduleForm = document.querySelector('#scheduleReviewForm');
+    if (scheduleForm) {
+        scheduleForm.addEventListener('submit', function(e) {
+            // Prevent default submission to check form
+            e.preventDefault();
+            
+            const panelCheckboxes = document.querySelectorAll('.panel-member-checkbox:checked');
+            if (panelCheckboxes.length !== 3) {
+                alert('Please select exactly 3 panel members before submitting.');
+                return false;
+            }
+            
+            const batchCheckboxes = document.querySelectorAll('input[type="checkbox"].batch-checkbox:checked');
+            console.log(`Submitting with ${batchCheckboxes.length} batches selected`);
+            
+            if (batchCheckboxes.length === 0) {
+                alert('Please select at least one batch for the review.');
+                return false;
+            }
+            
+            // Get batch IDs from selected checkboxes
+            const batchIds = Array.from(batchCheckboxes).map(cb => cb.value);
+            console.log('Selected batch IDs:', batchIds);
+            
+            // Remove existing hidden inputs to avoid duplicates
+            const existingHiddenInputs = scheduleForm.querySelectorAll('input[name="batchIds[]"][type="hidden"]');
+            existingHiddenInputs.forEach(input => input.remove());
+            
+            // Create and append hidden inputs for each selected batch ID
+            batchIds.forEach(id => {
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'batchIds[]';
+                hiddenInput.value = id;
+                scheduleForm.appendChild(hiddenInput);
+            });
+            
+            // Submit the form
+            console.log('Form validated, submitting with batches:', batchIds);
+            scheduleForm.submit();
+        });
+    }
+});
+</script>
+
+<style>
+.batch-check-item {
+    padding: 8px;
+    border-radius: 5px;
+    transition: background-color 0.2s;
+}
+.batch-check-item:hover {
+    background-color: #e9ecef;
+}
+.batch-check-item .form-check-input:checked + .batch-label {
+    font-weight: bold;
+    color: #0d6efd;
+}
+.batch-check-item .form-check-input:checked ~ .batch-check-item {
+    background-color: #e7f1ff;
+    border: 1px solid #b8daff;
+}
+</style> 

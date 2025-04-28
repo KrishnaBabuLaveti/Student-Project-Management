@@ -1,0 +1,29 @@
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <div class="card border-danger">
+                <div class="card-body">
+                    <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                    <h1 class="display-4 text-danger mb-4">Oops! Something went wrong</h1>
+                    <p class="lead mb-4"><%= message %></p>
+                    
+                    <% if (error && Object.keys(error).length > 0) { %>
+                        <div class="alert alert-danger text-start">
+                            <h5 class="alert-heading">Error Details:</h5>
+                            <pre class="mb-0"><%= JSON.stringify(error, null, 2) %></pre>
+                        </div>
+                    <% } %>
+
+                    <div class="mt-4">
+                        <a href="/" class="btn btn-primary me-2">
+                            <i class="fas fa-home me-2"></i>Go to Homepage
+                        </a>
+                        <button onclick="history.back()" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Go Back
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 

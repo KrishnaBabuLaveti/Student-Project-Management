@@ -1,0 +1,168 @@
+<%- include('../partials/layout') %>
+
+<div class="container mt-4">
+    <div class="row">
+        <!-- Performance Overview -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Submission Analytics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="stats-card bg-primary text-white p-3 rounded">
+                                <h6>Total Submissions</h6>
+                                <h3><%= submissions.length %></h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stats-card bg-success text-white p-3 rounded">
+                                <h6>Average Rating</h6>
+                                <h3>
+                                    <% 
+                                    const ratings = submissions.flatMap(s => s.feedback.map(f => f.rating)).filter(r => r);
+                                    const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : 'N/A';
+                                    %>
+                                    <%= avgRating %>/10
+                                </h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stats-card bg-info text-white p-3 rounded">
+                                <h6>Feedback Received</h6>
+                                <h3><%= submissions.reduce((total, sub) => total + sub.feedback.length, 0) %></h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submission Type Distribution -->
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Submission Types</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="submissionTypeChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Rating Trends</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="ratingTrendChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Feedback -->
+                    <div class="mt-4">
+                        <h6>Recent Feedback</h6>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Submission Type</th>
+                                        <th>From</th>
+                                        <th>Rating</th>
+                                        <th>Comment</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% 
+                                    const recentFeedback = submissions
+                                        .flatMap(s => s.feedback.map(f => ({
+                                            type: s.type,
+                                            ...f,
+                                            submittedAt: s.submittedAt
+                                        })))
+                                        .sort((a, b) => b.createdAt - a.createdAt)
+                                        .slice(0, 5);
+                                    %>
+                                    <% recentFeedback.forEach(feedback => { %>
+                                        <tr>
+                                            <td><%= feedback.type.charAt(0).toUpperCase() + feedback.type.slice(1) %></td>
+                                            <td><%= feedback.from.name %></td>
+                                            <td><%= feedback.rating %>/10</td>
+                                            <td><%= feedback.comment %></td>
+                                            <td><%= new Date(feedback.createdAt).toLocaleDateString() %></td>
+                                        </tr>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Submission Type Distribution Chart
+    const submissionTypes = <%- JSON.stringify(submissions.reduce((acc, sub) => {
+        acc[sub.type] = (acc[sub.type] || 0) + 1;
+        return acc;
+    }, {})) %>;
+
+    new Chart(document.getElementById('submissionTypeChart'), {
+        type: 'pie',
+        data: {
+            labels: Object.keys(submissionTypes).map(type => type.charAt(0).toUpperCase() + type.slice(1)),
+            datasets: [{
+                data: Object.values(submissionTypes),
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56']
+            }]
+        }
+    });
+
+    // Rating Trend Chart
+    const ratingData = <%- JSON.stringify(submissions
+        .flatMap(s => s.feedback.map(f => ({
+            date: new Date(f.createdAt).toLocaleDateString(),
+            rating: f.rating
+        })))
+        .sort((a, b) => new Date(a.date) - new Date(b.date))) %>;
+
+    new Chart(document.getElementById('ratingTrendChart'), {
+        type: 'line',
+        data: {
+            labels: ratingData.map(d => d.date),
+            datasets: [{
+                label: 'Rating',
+                data: ratingData.map(d => d.rating),
+                borderColor: '#36A2EB',
+                tension: 0.1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 10
+                }
+            }
+        }
+    });
+});
+</script>
+
+<style>
+.stats-card {
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+.stats-card:hover {
+    transform: translateY(-5px);
+}
+</style> 

@@ -1,0 +1,120 @@
+<%- include('../partials/layout') %>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/faculty/dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="/faculty/batch/<%= batchId %>">Batch Details</a></li>
+                <li class="breadcrumb-item active">Student Submissions</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Submissions by <%= student.name %></h4>
+                <p class="text-muted mb-0">JNTU Number: <%= student.jntuNumber %> | Branch: <%= student.branch %></p>
+            </div>
+            <div class="card-body">
+                <% if (student.submissions && student.submissions.length > 0) { %>
+                    <div class="accordion" id="submissionsAccordion">
+                        <% student.submissions.forEach((submission, index) => { %>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading<%= index %>">
+                                    <button class="accordion-button <%= index === 0 ? '' : 'collapsed' %>" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<%= index %>">
+                                        <%= submission.type.charAt(0).toUpperCase() + submission.type.slice(1) %> - 
+                                        <%= new Date(submission.submittedAt).toLocaleString() %>
+                                    </button>
+                                </h2>
+                                <div id="collapse<%= index %>" class="accordion-collapse collapse <%= index === 0 ? 'show' : '' %>" data-bs-parent="#submissionsAccordion">
+                                    <div class="accordion-body">
+                                        <div class="row">
+                                            <div class="col-md-8">
+                                                <h5>Submission Details</h5>
+                                                <p><strong>Type:</strong> <%= submission.type %></p>
+                                                <p><strong>Submitted:</strong> <%= new Date(submission.submittedAt).toLocaleString() %></p>
+                                                <p>
+                                                    <strong>File:</strong> 
+                                                    <a href="/<%= submission.fileUrl %>" target="_blank" class="btn btn-sm btn-primary">
+                                                        <i class="fas fa-download"></i> Download
+                                                    </a>
+                                                </p>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <button class="btn btn-success w-100 mb-3" data-bs-toggle="modal" data-bs-target="#provideFeedbackModal<%= submission._id %>">
+                                                    <i class="fas fa-comment"></i> Provide Feedback
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Feedback History -->
+                                        <div class="mt-4">
+                                            <h5>Feedback History</h5>
+                                            <% if (submission.feedback && submission.feedback.length > 0) { %>
+                                                <div class="list-group">
+                                                    <% submission.feedback.forEach(fb => { %>
+                                                        <div class="list-group-item">
+                                                            <div class="d-flex w-100 justify-content-between">
+                                                                <h6 class="mb-1">
+                                                                    <%= fb.from.name %> 
+                                                                    <span class="badge bg-secondary"><%= fb.from.role %></span>
+                                                                </h6>
+                                                                <small><%= new Date(fb.createdAt).toLocaleString() %></small>
+                                                            </div>
+                                                            <p class="mb-1"><%= fb.comment %></p>
+                                                            <small>Rating: <%= fb.rating %>/10</small>
+                                                        </div>
+                                                    <% }); %>
+                                                </div>
+                                            <% } else { %>
+                                                <div class="alert alert-info">
+                                                    No feedback provided yet.
+                                                </div>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Provide Feedback Modal -->
+                            <div class="modal fade" id="provideFeedbackModal<%= submission._id %>" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Provide Feedback</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form action="/faculty/feedback/<%= student._id %>/<%= submission._id %>" method="POST">
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label for="comment" class="form-label">Comments</label>
+                                                    <textarea class="form-control" id="comment" name="comment" rows="4" required></textarea>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="rating" class="form-label">Rating (0-10)</label>
+                                                    <input type="number" class="form-control" id="rating" name="rating" min="0" max="10" required>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                <button type="submit" class="btn btn-primary">Submit Feedback</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } else { %>
+                    <div class="alert alert-info">
+                        No submissions found for this student.
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div> 

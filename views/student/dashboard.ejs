@@ -1,0 +1,247 @@
+<%- contentFor('body') %>
+
+<div class="container mt-4">
+    <div class="row">
+        <!-- Student Profile Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Student Profile</h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="card-title"><%= user.name %></h6>
+                    <p class="card-text">
+                        <strong>JNTU Number:</strong> <%= user.jntuNumber %><br>
+                        <strong>Department:</strong> <%= user.department %><br>
+                        <strong>CGPA:</strong> <%= user.cgpa %><br>
+                        <strong>Branch:</strong> <%= user.branch %>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Batch and Project Details -->
+        <div class="col-md-8 mb-4">
+            <% if (user.batch) { %>
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Project Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-title"><%= user.batch.name %></h6>
+                        <p class="card-text">
+                            <strong>Project Title:</strong> <%= user.batch.projectTitle %><br>
+                            <strong>Description:</strong> <%= user.batch.projectDescription %><br>
+                            <strong>Guide:</strong> <%= user.batch.faculty ? user.batch.faculty.name : 'Not Assigned' %><br>
+                            <strong>Academic Year:</strong> <%= user.batch.academicYear %>
+                        </p>
+                        
+                        <h6 class="mt-4">Team Members</h6>
+                        <div class="list-group">
+                            <% user.batch.students.forEach(student => { %>
+                                <div class="list-group-item <%= student._id.toString() === user._id.toString() ? 'active' : '' %>">
+                                    <%= student.name %> (<%= student.jntuNumber %>)
+                                </div>
+                            <% }); %>
+                        </div>
+                    </div>
+                </div>
+            <% } else { %>
+                <div class="alert alert-info">
+                    You have not been assigned to a batch yet. Please contact your supervisor.
+                </div>
+            <% } %>
+        </div>
+    </div>
+
+    <% if (user.batch) { %>
+        <!-- Project Submissions -->
+        <div class="row">
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Project Submissions</h5>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newSubmissionModal">
+                            <i class="fas fa-upload"></i> New Submission
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <% if (user.submissions && user.submissions.length > 0) { %>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Type</th>
+                                            <th>Submitted On</th>
+                                            <th>File</th>
+                                            <th>Feedback</th>
+                                            <th>Average Rating</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% user.submissions.sort((a, b) => b.submittedAt - a.submittedAt).forEach(submission => { %>
+                                            <tr>
+                                                <td><%= submission.type.charAt(0).toUpperCase() + submission.type.slice(1) %></td>
+                                                <td><%= new Date(submission.submittedAt).toLocaleString() %></td>
+                                                <td>
+                                                    <a href="/<%= submission.fileUrl %>" class="btn btn-sm btn-primary" target="_blank">
+                                                        <i class="fas fa-download"></i> Download
+                                                    </a>
+                                                </td>
+                                                <td>
+                                                    <% if (submission.feedback && submission.feedback.length > 0) { %>
+                                                        <button class="btn btn-sm btn-info" data-bs-toggle="modal" 
+                                                                data-bs-target="#feedbackModal<%= submission._id %>">
+                                                            View Feedback (<%= submission.feedback.length %>)
+                                                        </button>
+                                                    <% } else { %>
+                                                        <span class="text-muted">No feedback yet</span>
+                                                    <% } %>
+                                                </td>
+                                                <td>
+                                                    <% if (submission.feedback && submission.feedback.length > 0) { %>
+                                                        <% const avgRating = submission.feedback.reduce((sum, fb) => sum + fb.rating, 0) / submission.feedback.length; %>
+                                                        <%= avgRating.toFixed(1) %>/10
+                                                    <% } else { %>
+                                                        N/A
+                                                    <% } %>
+                                                </td>
+                                            </tr>
+
+                                            <!-- Feedback Modal -->
+                                            <% if (submission.feedback && submission.feedback.length > 0) { %>
+                                                <div class="modal fade" id="feedbackModal<%= submission._id %>" tabindex="-1">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header">
+                                                                <h5 class="modal-title">Feedback History</h5>
+                                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <div class="list-group">
+                                                                    <% submission.feedback.forEach(fb => { %>
+                                                                        <div class="list-group-item">
+                                                                            <div class="d-flex w-100 justify-content-between">
+                                                                                <h6 class="mb-1">
+                                                                                    <%= fb.from.name %>
+                                                                                    <span class="badge bg-secondary"><%= fb.from.role %></span>
+                                                                                </h6>
+                                                                                <small><%= new Date(fb.createdAt).toLocaleString() %></small>
+                                                                            </div>
+                                                                            <p class="mb-1"><%= fb.comment %></p>
+                                                                            <small>Rating: <%= fb.rating %>/10</small>
+                                                                        </div>
+                                                                    <% }); %>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            <% } %>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } else { %>
+                            <div class="alert alert-info">
+                                No submissions yet. Use the "New Submission" button to submit your project work.
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upcoming Reviews -->
+        <div class="row">
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Upcoming Reviews</h5>
+                    </div>
+                    <div class="card-body">
+                        <% if (user.batch.reviewDates && user.batch.reviewDates.length > 0) { %>
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Date</th>
+                                            <th>Status</th>
+                                            <th>Feedback</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% user.batch.reviewDates.sort((a, b) => new Date(a.date) - new Date(b.date))
+                                            .filter(review => !review.completed || new Date(review.date) > new Date())
+                                            .forEach(review => { %>
+                                            <tr>
+                                                <td><%= review.title %></td>
+                                                <td><%= new Date(review.date).toLocaleString() %></td>
+                                                <td>
+                                                    <span class="badge bg-<%= review.completed ? 'success' : 'warning' %>">
+                                                        <%= review.completed ? 'Completed' : 'Scheduled' %>
+                                                    </span>
+                                                </td>
+                                                <td><%= review.feedback || 'No feedback yet' %></td>
+                                            </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } else { %>
+                            <div class="alert alert-info">
+                                No upcoming reviews scheduled.
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- New Submission Modal -->
+        <div class="modal fade" id="newSubmissionModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">New Submission</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="/student/submit" method="POST" enctype="multipart/form-data">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="submissionType" class="form-label">Submission Type</label>
+                                <select class="form-select" id="submissionType" name="type" required>
+                                    <option value="">Select Type</option>
+                                    <option value="report">Report</option>
+                                    <option value="presentation">Presentation</option>
+                                    <option value="documentation">Documentation</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="submissionFile" class="form-label">File</label>
+                                <input type="file" class="form-control" id="submissionFile" name="file" required>
+                                <small class="text-muted">Accepted formats: PDF, PPTX, DOC, DOCX (Max size: 10MB)</small>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    <% } %>
+</div>
+
+<script>
+// File size validation
+document.getElementById('submissionFile').addEventListener('change', function(e) {
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (this.files[0].size > maxSize) {
+        alert('File size must be less than 10MB');
+        this.value = '';
+    }
+});
+</script> 

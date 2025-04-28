@@ -1,0 +1,123 @@
+<%- contentFor('body') %>
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><%= role === 'faculty' ? 'Faculty' : 'Supervisor' %> Registration</h4>
+                </div>
+                <div class="card-body">
+                    <% if(errors && errors.length > 0) { %>
+                        <div class="alert alert-danger">
+                            <% errors.forEach(function(error) { %>
+                                <%= error.msg %><br>
+                            <% }); %>
+                        </div>
+                    <% } %>
+                    <form action="/auth/register" method="POST" class="needs-validation" novalidate>
+                        <input type="hidden" name="role" value="<%= role %>">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="name" name="name" value="<%= typeof name != 'undefined' ? name : '' %>" required>
+                            <div class="invalid-feedback">
+                                Please enter your full name
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" value="<%= typeof email != 'undefined' ? email : '' %>" required>
+                            <div class="invalid-feedback">
+                                Please enter a valid email address
+                            </div>
+                        </div>
+
+                        <% if (role === 'faculty') { %>
+                            <div class="mb-3">
+                                <label for="department" class="form-label">Department</label>
+                                <select class="form-select" id="department" name="department" required>
+                                    <option value="">Select Department</option>
+                                    <option value="CSE" <%= typeof department !== 'undefined' && department === 'CSE' ? 'selected' : '' %>>CSE</option>
+                                    <option value="CSE-AIML" <%= typeof department !== 'undefined' && department === 'CSE-AIML' ? 'selected' : '' %>>CSE-AIML</option>
+                                    <option value="CSE-AIDS" <%= typeof department !== 'undefined' && department === 'CSE-AIDS' ? 'selected' : '' %>>CSE-AIDS</option>
+                                    <option value="IT" <%= typeof department !== 'undefined' && department === 'IT' ? 'selected' : '' %>>IT</option>
+                                    <option value="ECE" <%= typeof department !== 'undefined' && department === 'ECE' ? 'selected' : '' %>>ECE</option>
+                                    <option value="MECH" <%= typeof department !== 'undefined' && department === 'MECH' ? 'selected' : '' %>>MECH</option>
+                                    <option value="CIVIL" <%= typeof department !== 'undefined' && department === 'CIVIL' ? 'selected' : '' %>>CIVIL</option>
+                                </select>
+                                <div class="invalid-feedback">
+                                    Please select a department
+                                </div>
+                            </div>
+                        <% } %>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" required minlength="6">
+                            <div class="invalid-feedback">
+                                Password must be at least 6 characters long
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password2" class="form-label">Confirm Password</label>
+                            <input type="password" class="form-control" id="password2" name="password2" required>
+                            <div class="invalid-feedback">
+                                Passwords must match
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">Register</button>
+                    </form>
+                </div>
+                <div class="card-footer text-center">
+                    <p class="mb-0">Already have an account? <a href="/auth/login">Login</a></p>
+                </div>
+            </div>
+            
+            <!-- Back to Home Button -->
+            <div class="text-center mt-3">
+                <a href="/" class="btn btn-outline-secondary">
+                    <i class="fas fa-home me-2"></i>Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        // Additional validation for faculty role
+        if ('<%= role %>' === 'faculty') {
+            const departmentSelect = document.getElementById('department');
+            if (!departmentSelect.value) {
+                departmentSelect.setCustomValidity('Please select a department');
+                event.preventDefault();
+                event.stopPropagation();
+            } else {
+                departmentSelect.setCustomValidity('');
+            }
+        }
+
+        const password = document.getElementById('password');
+        const password2 = document.getElementById('password2');
+        if (password.value !== password2.value) {
+            password2.setCustomValidity('Passwords must match');
+            event.preventDefault();
+            event.stopPropagation();
+        } else {
+            password2.setCustomValidity('');
+        }
+
+        form.classList.add('was-validated');
+    });
+});
+</script> 

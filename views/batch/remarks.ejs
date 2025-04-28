@@ -1,0 +1,178 @@
+<%- include('../partials/layout') %>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        Batch Remarks: <%= batch.name %>
+                        <small class="text-muted">(<%= batch.projectTitle %>)</small>
+                    </h5>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRemarkModal">
+                        <i class="fas fa-plus"></i> Add Remark
+                    </button>
+                </div>
+                <div class="card-body">
+                    <!-- Batch Info -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <p><strong>Faculty Guide:</strong> <%= batch.faculty ? batch.faculty.name : 'Not Assigned' %></p>
+                            <p><strong>Department:</strong> <%= batch.department %></p>
+                            <p><strong>Academic Year:</strong> <%= batch.academicYear %></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Status:</strong> 
+                                <span class="badge bg-<%= batch.status === 'active' ? 'success' : 
+                                    batch.status === 'completed' ? 'primary' : 'warning' %>">
+                                    <%= batch.status.charAt(0).toUpperCase() + batch.status.slice(1) %>
+                                </span>
+                            </p>
+                            <p><strong>Students:</strong> <%= batch.students.length %></p>
+                            <p><strong>Created:</strong> <%= new Date(batch.createdAt).toLocaleDateString() %></p>
+                        </div>
+                    </div>
+
+                    <!-- Remarks Timeline -->
+                    <div class="remarks-timeline">
+                        <% if (batch.remarks && batch.remarks.length > 0) { %>
+                            <% batch.remarks.sort((a, b) => b.createdAt - a.createdAt).forEach(remark => { %>
+                                <div class="remark-item mb-3">
+                                    <div class="card <%= remark.type === 'warning' ? 'border-warning' : 
+                                        remark.type === 'feedback' ? 'border-info' : 'border-primary' %>">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <h6 class="card-title mb-1">
+                                                        <%= remark.from.name %>
+                                                        <span class="badge bg-secondary"><%= remark.from.role %></span>
+                                                    </h6>
+                                                    <small class="text-muted">
+                                                        <%= new Date(remark.createdAt).toLocaleString() %>
+                                                    </small>
+                                                </div>
+                                                <span class="badge bg-<%= remark.type === 'warning' ? 'warning' : 
+                                                    remark.type === 'feedback' ? 'info' : 'primary' %>">
+                                                    <%= remark.type.charAt(0).toUpperCase() + remark.type.slice(1) %>
+                                                </span>
+                                            </div>
+                                            <p class="card-text mt-2"><%= remark.content %></p>
+                                            <% if (user.role === 'supervisor' || 
+                                                (user.role === 'faculty' && user._id.toString() === batch.faculty._id.toString())) { %>
+                                                <div class="text-end">
+                                                    <button class="btn btn-sm btn-danger" 
+                                                            onclick="deleteRemark('<%= batch._id %>', '<%= remark._id %>')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% }); %>
+                        <% } else { %>
+                            <div class="alert alert-info">
+                                No remarks added yet.
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Remark Modal -->
+<div class="modal fade" id="addRemarkModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Remark</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/batch/<%= batch._id %>/remark" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Type</label>
+                        <select class="form-select" name="type" required>
+                            <option value="remark">General Remark</option>
+                            <option value="feedback">Feedback</option>
+                            <% if (user.role === 'supervisor') { %>
+                                <option value="warning">Warning</option>
+                            <% } %>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Content</label>
+                        <textarea class="form-control" name="content" rows="4" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Add Remark</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+async function deleteRemark(batchId, remarkId) {
+    if (!confirm('Are you sure you want to delete this remark?')) return;
+    
+    try {
+        const response = await fetch(`/batch/${batchId}/remark/${remarkId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('Error deleting remark');
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Error deleting remark');
+    }
+}
+</script>
+
+<style>
+.remarks-timeline {
+    position: relative;
+    padding: 20px 0;
+}
+
+.remark-item {
+    position: relative;
+    margin-left: 20px;
+}
+
+.remark-item::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #e9ecef;
+}
+
+.remark-item:last-child::before {
+    height: 50%;
+}
+
+.remark-item .card {
+    margin-left: 20px;
+}
+
+.remark-item .card::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 20px;
+    width: 20px;
+    height: 2px;
+    background-color: #e9ecef;
+}
+</style> 
