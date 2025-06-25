@@ -14,6 +14,104 @@
         </div>
     </div>
 
+    <!-- Global Reviews Section -->
+    <% if (pendingGlobalReviews && pendingGlobalReviews.length > 0) { %>
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">Pending Global Reviews</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Batch</th>
+                                    <th>Review Title</th>
+                                    <th>Date</th>
+                                    <th>Guide</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% pendingGlobalReviews.forEach(review => { %>
+                                <tr>
+                                    <td><%= review.batchName %></td>
+                                    <td><%= review.title %></td>
+                                    <td><%= new Date(review.date).toLocaleDateString() %></td>
+                                    <td><%= review.faculty ? review.faculty.name : 'Not Assigned' %></td>
+                                    <td>
+                                        <button class="btn btn-primary btn-sm" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#reviewModal<%= review.reviewId %>">
+                                            Submit Score
+                                        </button>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <% } %>
+
+    <!-- Completed Global Reviews Section -->
+    <% if (completedGlobalReviews && completedGlobalReviews.length > 0) { %>
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Completed Global Reviews</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Batch</th>
+                                    <th>Review Title</th>
+                                    <th>Date</th>
+                                    <th>Guide</th>
+                                    <th>Panel Scores</th>
+                                    <th>Supervisor Score</th>
+                                    <th>Final Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% completedGlobalReviews.forEach(review => { %>
+                                <tr>
+                                    <td><%= review.batchName %></td>
+                                    <td><%= review.title %></td>
+                                    <td><%= new Date(review.date).toLocaleDateString() %></td>
+                                    <td><%= review.faculty ? review.faculty.name : 'Not Assigned' %></td>
+                                    <td>
+                                        <% review.panelMembers.forEach(pm => { %>
+                                            <div><%= pm.score !== null ? pm.score : 'Pending' %></div>
+                                        <% }); %>
+                                    </td>
+                                    <td><%= review.supervisorScore !== null ? review.supervisorScore : 'Pending' %></td>
+                                    <td>
+                                        <% if (review.completed && review.aggregateScore !== null) { %>
+                                            <span class="badge bg-success"><%= review.aggregateScore.toFixed(2) %></span>
+                                        <% } else { %>
+                                            <span class="badge bg-warning">Pending</span>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <% } %>
+
     <!-- Assigned Batches Section -->
     <div class="row mb-4">
         <div class="col-md-12">
@@ -24,16 +122,13 @@
                 <div class="card-body">
                     <% if (assignedBatches && assignedBatches.length > 0) { %>
                         <div class="table-responsive">
-                            <table class="table table-hover">
+                            <table class="table">
                                 <thead>
                                     <tr>
                                         <th>Batch Name</th>
-                                        <th>Department</th>
-                                        <th>Academic Year</th>
                                         <th>Project Title</th>
                                         <th>Students</th>
-                                        <th>Avg CGPA</th>
-                                        <th>Status</th>
+                                        <th>Avg. CGPA</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -41,36 +136,11 @@
                                     <% assignedBatches.forEach(batch => { %>
                                         <tr>
                                             <td><%= batch.name %></td>
-                                            <td><%= batch.department %></td>
-                                            <td><%= batch.academicYear %></td>
                                             <td><%= batch.projectTitle %></td>
-                                            <td>
-                                                <% if (batch.students && batch.students.length > 0) { %>
-                                                    <% batch.students.forEach(student => { %>
-                                                        <div class="badge bg-info text-wrap mb-1" style="width: 100%;">
-                                                            <%= student.name %> (<%= student.jntuNumber %>)
-                                                        </div>
-                                                    <% }); %>
-                                                <% } else { %>
-                                                    <span class="badge bg-warning">No students</span>
-                                                <% } %>
-                                            </td>
+                                            <td><%= batch.studentCount %></td>
                                             <td><%= batch.averageCGPA %></td>
                                             <td>
-                                                <span class="badge bg-<%= batch.status === 'active' ? 'success' : 
-                                                    batch.status === 'completed' ? 'primary' : 'warning' %>">
-                                                    <%= batch.status.charAt(0).toUpperCase() + batch.status.slice(1) %>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <div class="btn-group">
-                                                    <a href="/faculty/batch/<%= batch._id %>" class="btn btn-sm btn-primary">
-                                                        <i class="fas fa-eye"></i> View Details
-                                                    </a>
-                                                    <a href="/faculty/batch/<%= batch._id %>/submissions" class="btn btn-sm btn-info">
-                                                        <i class="fas fa-file-alt"></i> Submissions
-                                                    </a>
-                                                </div>
+                                                <a href="/faculty/batch/<%= batch._id %>" class="btn btn-primary btn-sm">View Details</a>
                                             </td>
                                         </tr>
                                     <% }); %>
@@ -86,70 +156,39 @@
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Upcoming Reviews Section -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Upcoming Reviews</h5>
-                </div>
-                <div class="card-body">
-                    <% 
-                    let upcomingReviews = [];
-                    if (assignedBatches && assignedBatches.length > 0) {
-                        upcomingReviews = assignedBatches.reduce((reviews, batch) => {
-                            if (!batch.reviewDates) return reviews;
-                            
-                            const batchReviews = batch.reviewDates
-                                .filter(review => !review.completed && new Date(review.date) > new Date())
-                                .map(review => ({
-                                    ...review,
-                                    batchName: batch.name,
-                                    batchId: batch._id
-                                }));
-                            return [...reviews, ...batchReviews];
-                        }, []).sort((a, b) => new Date(a.date) - new Date(b.date));
-                    }
-                    %>
-
-                    <% if (upcomingReviews.length > 0) { %>
-                        <div class="table-responsive">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Batch</th>
-                                        <th>Review Title</th>
-                                        <th>Date</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <% upcomingReviews.forEach(review => { %>
-                                        <tr>
-                                            <td><%= review.batchName %></td>
-                                            <td><%= review.title %></td>
-                                            <td><%= new Date(review.date).toLocaleString() %></td>
-                                            <td>
-                                                <a href="/faculty/batch/<%= review.batchId %>" class="btn btn-sm btn-primary">
-                                                    View Batch
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    <% }); %>
-                                </tbody>
-                            </table>
+<!-- Review Modals -->
+<% if (pendingGlobalReviews && pendingGlobalReviews.length > 0) { %>
+    <% pendingGlobalReviews.forEach(review => { %>
+        <div class="modal fade" id="reviewModal<%= review.reviewId %>" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Submit Review Score - <%= review.title %></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form action="/faculty/review/<%= review.batchId %>/<%= review.reviewId %>/panel-score" method="POST">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="feedback" class="form-label">Feedback</label>
+                                <textarea class="form-control" id="feedback" name="feedback" rows="3" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="score" class="form-label">Score (0-100)</label>
+                                <input type="number" class="form-control" id="score" name="score" min="0" max="100" required>
+                            </div>
                         </div>
-                    <% } else { %>
-                        <div class="alert alert-info">
-                            No upcoming reviews scheduled.
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary">Submit Score</button>
                         </div>
-                    <% } %>
+                    </form>
                 </div>
             </div>
         </div>
-    </div>
-</div>
+    <% }); %>
+<% } %>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

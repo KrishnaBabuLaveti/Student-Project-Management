@@ -145,13 +145,7 @@
                         <label class="form-label fw-bold">Select Batches for Review</label>
                         <div class="alert alert-info" role="alert">
                             <div class="d-flex align-items-center mb-2">
-                                <div class="form-check mb-0">
-                                    <input class="form-check-input" type="checkbox" id="selectAllBatches" onchange="toggleAllBatches(this.checked)">
-                                    <label class="form-check-label fw-bold" for="selectAllBatches">
-                                        Select All Batches
-                                    </label>
-                                </div>
-                                <div id="batchCount" class="ms-3 badge bg-primary">0 batches selected</div>
+                                <div id="batchCount" class="badge bg-primary">0 batches selected</div>
                             </div>
                             <small>Choose which batches should receive this review.</small>
                         </div>
@@ -228,22 +222,6 @@ function validatePanelMembers() {
     if (countMessage) {
         countMessage.textContent = `${checkboxes.length} of 3 required panel members selected`;
     }
-}
-
-function toggleAllBatches(checked) {
-    // Get ALL batch checkboxes using the correct selector
-    const batchCheckboxes = document.querySelectorAll('input[type="checkbox"].batch-checkbox');
-    
-    console.log(`Found ${batchCheckboxes.length} batch checkboxes to toggle`);
-    
-    // Apply the checked state to all checkboxes
-    batchCheckboxes.forEach(checkbox => {
-        checkbox.checked = checked;
-    });
-    
-    // Update UI and validation state
-    updateBatchCount();
-    validatePanelMembers();
 }
 
 function updateBatchCount() {
@@ -351,17 +329,23 @@ document.addEventListener('DOMContentLoaded', function() {
 .batch-check-item {
     padding: 8px;
     border-radius: 5px;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
 }
 .batch-check-item:hover {
     background-color: #e9ecef;
 }
-.batch-check-item .form-check-input:checked + .batch-label {
+.batch-check-item input:checked ~ .batch-label {
+    color: #0d6efd;
     font-weight: bold;
+}
+.batch-check-item input:checked ~ .batch-label small {
     color: #0d6efd;
 }
-.batch-check-item .form-check-input:checked ~ .batch-check-item {
+.batch-check-item input:checked + .batch-label {
     background-color: #e7f1ff;
+    display: block;
+    padding: 8px;
+    border-radius: 4px;
     border: 1px solid #b8daff;
 }
 </style> 

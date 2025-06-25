@@ -706,16 +706,11 @@ router.post('/review/:batchId/:reviewId/complete', ensureAuthenticated, ensureSu
         }
 
         // Find review in the batch
-        const reviewIndex = batch.reviewDates.findIndex(
-            review => review._id.toString() === req.params.reviewId
-        );
-
-        if (reviewIndex === -1) {
+        const review = batch.reviewDates.id(req.params.reviewId);
+        if (!review) {
             req.flash('error_msg', 'Review not found');
             return res.redirect('/supervisor/manage-reviews');
         }
-
-        const review = batch.reviewDates[reviewIndex];
 
         if (!review.isGlobal) {
             req.flash('error_msg', 'Not authorized to complete this review');
@@ -727,30 +722,50 @@ router.post('/review/:batchId/:reviewId/complete', ensureAuthenticated, ensureSu
             .map(pm => pm.score)
             .filter(score => score !== null && !isNaN(parseFloat(score)));
 
-        // Update review
-        review.supervisorScore = supervisorScoreNum;
-        
-        // Ensure feedback array exists
-        if (!review.feedback) {
-            review.feedback = [];
+        // Update using atomic operations to preserve scheduledBy
+        const result = await Batch.findOneAndUpdate(
+            {
+                _id: req.params.batchId,
+                'reviewDates._id': req.params.reviewId
+            },
+            {
+                $set: {
+                    'reviewDates.$.supervisorScore': supervisorScoreNum
+                },
+                $push: {
+                    'reviewDates.$.feedback': {
+                        from: req.user._id,
+                        comment: feedback,
+                        createdAt: new Date()
+                    }
+                }
+            },
+            { new: true }
+        );
+
+        if (!result) {
+            req.flash('error_msg', 'Unable to update review');
+            return res.redirect('/supervisor/manage-reviews');
         }
 
-        // Add feedback
-        review.feedback.push({
-            from: req.user._id,
-            comment: feedback,
-            createdAt: new Date()
-        });
-
-        // Check if all scores are in
+        // If all panel scores are in, calculate and update aggregate score
         if (panelScores.length === review.panelMembers.length) {
             const avgPanelScore = panelScores.reduce((a, b) => a + b, 0) / panelScores.length;
-            review.aggregateScore = (supervisorScoreNum * 0.4) + (avgPanelScore * 0.6);
-            review.completed = true;
+            const aggregateScore = (supervisorScoreNum * 0.4) + (avgPanelScore * 0.6);
+            
+            await Batch.findOneAndUpdate(
+                {
+                    _id: req.params.batchId,
+                    'reviewDates._id': req.params.reviewId
+                },
+                {
+                    $set: {
+                        'reviewDates.$.aggregateScore': aggregateScore,
+                        'reviewDates.$.completed': true
+                    }
+                }
+            );
         }
-
-        // Save the updated batch
-        await batch.save();
 
         // Create notification
         if (batch.faculty) {

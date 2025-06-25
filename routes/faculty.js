@@ -35,10 +35,76 @@ router.get('/dashboard', ensureAuthenticated, ensureFaculty, async (req, res) =>
         
         console.log(`Found ${batches.length} batches assigned to faculty ${faculty.name}`);
 
+        // Find all global reviews where this faculty is a panel member or guide
+        const globalReviews = await Batch.find({
+            $or: [
+                { 'reviewDates.isGlobal': true, 'reviewDates.panelMembers.member': faculty._id },
+                { 'reviewDates.isGlobal': true, faculty: faculty._id }
+            ]
+        }).populate('faculty', 'name department')
+          .lean();
+
+        // Extract and format global reviews
+        const pendingGlobalReviews = [];
+        const completedGlobalReviews = [];
+
+        globalReviews.forEach(batch => {
+            batch.reviewDates.forEach(review => {
+                if (review.isGlobal) {
+                    const isPanelMember = review.panelMembers.some(pm => pm.member.toString() === faculty._id.toString());
+                    const isBatchFaculty = batch.faculty._id.toString() === faculty._id.toString();
+                    
+                    if (isPanelMember || isBatchFaculty) {
+                        const reviewData = {
+                            batchId: batch._id,
+                            reviewId: review._id,
+                            batchName: batch.name,
+                            title: review.title,
+                            date: review.date,
+                            faculty: batch.faculty,
+                            completed: review.completed,
+                            aggregateScore: review.aggregateScore,
+                            supervisorScore: review.supervisorScore,
+                            panelMembers: review.panelMembers,
+                            isPanelMember: isPanelMember,
+                            isBatchFaculty: isBatchFaculty,
+                            feedback: review.feedback || []
+                        };
+
+                        // For panel members, check if they need to submit a score
+                        if (isPanelMember) {
+                            const panelMember = review.panelMembers.find(pm => pm.member.toString() === faculty._id.toString());
+                            if (!panelMember.score && !review.completed) {
+                                pendingGlobalReviews.push(reviewData);
+                                return;
+                            }
+                        }
+
+                        // For batch faculty, show in pending if not completed
+                        if (isBatchFaculty && !review.completed) {
+                            pendingGlobalReviews.push(reviewData);
+                            return;
+                        }
+
+                        if (review.completed) {
+                            completedGlobalReviews.push(reviewData);
+                        }
+                    }
+                }
+            });
+        });
+
         // Calculate average CGPA for each batch
         const batchesWithStats = batches.map(batch => {
             const totalCGPA = batch.students.reduce((sum, student) => sum + (student.cgpa || 0), 0);
             const averageCGPA = batch.students.length > 0 ? totalCGPA / batch.students.length : 0;
+            
+            // Get completed global reviews for this batch
+            const batchGlobalReviews = batch.reviewDates ? batch.reviewDates.filter(r => r.isGlobal && r.completed) : [];
+            const globalReviewScores = batchGlobalReviews.map(r => r.aggregateScore).filter(score => score !== undefined);
+            const averageGlobalScore = globalReviewScores.length > 0 
+                ? globalReviewScores.reduce((a, b) => a + b, 0) / globalReviewScores.length 
+                : null;
             
             return {
                 ...batch.toObject(),
@@ -46,13 +112,17 @@ router.get('/dashboard', ensureAuthenticated, ensureFaculty, async (req, res) =>
                 studentCount: batch.students.length,
                 projectTitle: batch.projectTitle || 'Not assigned',
                 projectDescription: batch.projectDescription || 'Not provided',
-                status: batch.status || 'active'
+                status: batch.status || 'active',
+                globalReviews: batchGlobalReviews,
+                averageGlobalScore: averageGlobalScore
             };
         });
 
         res.render('faculty/dashboard', {
             user: faculty,
             assignedBatches: batchesWithStats,
+            pendingGlobalReviews,
+            completedGlobalReviews,
             layout: 'layouts/main'
         });
     } catch (err) {
@@ -416,6 +486,113 @@ router.post('/batch/:batchId/review/:reviewId/complete', ensureAuthenticated, en
         console.error('Error completing review:', err);
         req.flash('error_msg', 'Error completing review');
         return res.redirect(`/faculty/batch/${req.params.batchId}`);
+    }
+});
+
+// Submit Panel Member Score for Global Review
+router.post('/review/:batchId/:reviewId/panel-score', ensureAuthenticated, ensureFaculty, async (req, res) => {
+    try {
+        const { score, feedback } = req.body;
+        const scoreNum = parseFloat(score);
+        
+        // Validate score
+        if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > 100) {
+            req.flash('error_msg', 'Score must be a number between 0 and 100');
+            return res.redirect('/faculty/dashboard');
+        }
+
+        // Find the batch and review
+        const batch = await Batch.findById(req.params.batchId);
+        if (!batch) {
+            req.flash('error_msg', 'Batch not found');
+            return res.redirect('/faculty/dashboard');
+        }
+
+        const review = batch.reviewDates.id(req.params.reviewId);
+        if (!review || !review.isGlobal) {
+            req.flash('error_msg', 'Review not found or not a global review');
+            return res.redirect('/faculty/dashboard');
+        }
+
+        // Find the panel member entry for the current faculty
+        const panelMemberIndex = review.panelMembers.findIndex(pm => 
+            pm.member.toString() === req.user._id.toString()
+        );
+
+        if (panelMemberIndex === -1) {
+            req.flash('error_msg', 'You are not authorized as a panel member for this review');
+            return res.redirect('/faculty/dashboard');
+        }
+
+        // Update panel member's score using atomic update
+        const result = await Batch.findOneAndUpdate(
+            {
+                _id: req.params.batchId,
+                'reviewDates._id': req.params.reviewId,
+                'reviewDates.panelMembers.member': req.user._id
+            },
+            {
+                $set: {
+                    'reviewDates.$.panelMembers.$[panel].score': scoreNum,
+                    'reviewDates.$.panelMembers.$[panel].feedback': feedback
+                }
+            },
+            {
+                arrayFilters: [{ 'panel.member': req.user._id }],
+                new: true
+            }
+        );
+
+        if (!result) {
+            req.flash('error_msg', 'Failed to update score');
+            return res.redirect('/faculty/dashboard');
+        }
+
+        // Get the updated review
+        const updatedReview = result.reviewDates.find(r => r._id.toString() === req.params.reviewId);
+        
+        // Check if all panel members have submitted scores
+        const allScoresSubmitted = updatedReview.panelMembers.every(pm => pm.score !== null);
+        
+        if (allScoresSubmitted && updatedReview.supervisorScore !== null) {
+            // Calculate aggregate score (40% supervisor + 60% average panel score)
+            const avgPanelScore = updatedReview.panelMembers.reduce((sum, pm) => sum + pm.score, 0) / updatedReview.panelMembers.length;
+            const aggregateScore = (updatedReview.supervisorScore * 0.4) + (avgPanelScore * 0.6);
+            
+            // Update the review with aggregate score
+            await Batch.findOneAndUpdate(
+                {
+                    _id: req.params.batchId,
+                    'reviewDates._id': req.params.reviewId
+                },
+                {
+                    $set: {
+                        'reviewDates.$.aggregateScore': aggregateScore,
+                        'reviewDates.$.completed': true
+                    }
+                }
+            );
+        }
+
+        // Create notification for supervisor
+        await Notification.create({
+            recipient: updatedReview.scheduledBy,
+            type: 'review',
+            title: 'Panel Score Submitted',
+            message: `Panel member ${req.user.name} has submitted a score for review "${updatedReview.title}"`,
+            relatedTo: {
+                model: 'Batch',
+                id: batch._id
+            },
+            from: req.user._id
+        });
+
+        req.flash('success_msg', 'Score submitted successfully');
+        return res.redirect('/faculty/dashboard');
+    } catch (err) {
+        console.error('Error submitting panel score:', err);
+        req.flash('error_msg', 'Error submitting score: ' + err.message);
+        return res.redirect('/faculty/dashboard');
     }
 });
 
